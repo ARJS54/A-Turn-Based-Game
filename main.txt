@@ -1,0 +1,758 @@
+#include<iostream>
+#include<map>
+#include<vector>
+#include<string>
+#include<sstream>
+#include<ctime>
+
+using namespace std;
+
+/** Converts strings from UPPERCASE or MiXedCasE to lowercase. */
+string tolower(string &s)
+{
+    string ns;
+    for (auto c : s) {
+        ns += tolower(c);
+    }
+    return ns;
+}
+
+// EventListener.h
+/** Parent class of all listeners. (It is abstract and can't be instantiated) */
+class EventListener
+{
+public:
+    // "void *" is a generic pointer to anything!
+    // 10x worse than regular pointers in potential problems
+    virtual void run(void *args) = 0;
+};
+
+// EventManager.h (Implemented as a Singleton)
+/** This class manages the event loop and all the event calls */
+struct EventManager // Structs in C++ are the same as classes, but default to "public" instead of "private".
+{
+    // static inside a class or struct works exactly like in java
+    // Only one instance per class.
+    static EventManager &getInstance(); // Gets an instance of the class (an object)
+
+    // Making sure I can't have copies of this instance.
+    EventManager(EventManager const& copy);            // Not Implemented (Copy constructor)
+    EventManager& operator=(EventManager const& copy); // Not Implemented (Assignment operator)
+
+    // Registers an event.
+    void listen(string event_name, EventListener *listener);
+
+    // Emits an event
+    // "void *" is a generic pointer to anything.
+    // !!! Highly unsafe, please don't do this at home without the presence of your parents !!!
+    void trigger(string event_name, void *args = nullptr);
+
+    // Returns true if still running
+    bool is_running();
+
+    // Stops the event loop
+    void stop();
+
+    // Reads the input and calls an input event
+    void check_events();
+
+    // constantly checks for new inputs until the program ends.
+    void event_loop();
+
+private:
+    // True if running
+    bool running;
+
+    // map<K, V> is a collection of V's indexed by S.
+    // In this case, we have lists/vectors of events indexed by their names.
+    map<string, vector<EventListener*>> registeredEvents;
+
+    // Only EventManager can call the constructor, so the only way to get an instance
+    // is by calling getInstance.
+    EventManager();
+};
+
+// InputListener.h
+class Game; // I'm repeating this line, to pretent it is in a different file.
+
+// A listener that gets called when a new input is received.
+struct InputListener : EventListener // Structs default to public even in inheritance.
+{
+    InputListener(Game *game);
+    void run(void *args) override;
+
+private:
+    // We store a game pointer for easy access.
+    Game *game;
+    vector<string> args;
+};
+
+// GoListener.h
+class Game;
+
+// A listener for the Go command
+class GoListener : public EventListener
+{
+public:
+    GoListener(Game *game);
+    void run(void *args) override;
+private:
+    Game  *game;
+    string direction;
+};
+
+// TeleportListener.h
+class Game;
+
+// A listener for the Teleport command
+class TeleportListener : public EventListener
+{
+public:
+    TeleportListener(Game *game);
+    void run(void *args) override;
+private:
+    Game *game;
+};
+
+// EnterRoomListener.h
+class Game;
+
+// A listener for the good ending
+class EnterRoomListener : public EventListener
+{
+public:
+    EnterRoomListener(Game *game);
+    void run(void *args) override;
+private:
+    Game *game;
+};
+
+
+// CharacterDeathListener.h
+class Game;
+
+// A listener for the bad ending
+class CharacterDeathListener : public EventListener
+{
+public:
+    CharacterDeathListener(Game *game);
+    void run(void *args) override;
+private:
+    Game *game;
+};
+
+// ResetListener.h
+class Game;
+
+// A listener for the good ending
+class RestartListener : public EventListener
+{
+public:
+    RestartListener(Game *game);
+    void run(void *args) override;
+private:
+   Game *game;
+};
+
+// VictoryListener.h
+class Game;
+
+// A listener for the good ending
+class VictoryListener : public EventListener
+{
+public:
+    VictoryListener(Game *game);
+    void run(void *args) override;
+private:
+   Game *game;
+};
+
+// DefeatListener.h
+class Game;
+
+// A listener for the bad ending
+class DefeatListener : public EventListener
+{
+public:
+    DefeatListener(Game *game);
+    void run(void *args) override;
+private:
+    Game *game;
+};
+
+// ExitListener.h
+class Game;
+
+// A listener for the exit command
+class ExitListener : public EventListener
+{
+public:
+    ExitListener(Game *game);
+    void run(void *args) override;
+private:
+    Game *game;
+};
+
+// MapListener.h
+class Game;
+
+// A listener for the exit command
+class MapListener : public EventListener
+{
+public:
+    MapListener(Game *game);
+    void run(void *args) override;
+private:
+    Game *game;
+};
+
+// InfoListener.h
+class Game;
+
+// A listener for the exit command
+class InfoListener : public EventListener
+{
+public:
+    InfoListener(Game *game);
+    void run(void *args) override;
+private:
+    Game *game;
+};
+
+// Room.h
+class Room
+{
+public:
+    Room(string name);
+    string getName();
+    void setExits(Room *north, Room *east, Room *south, Room *west);
+    Room *getExit(string direction);
+
+private:
+    string name;
+    map<string, Room *> exits;
+};
+
+class Character
+{
+public:
+    Character(string name);
+
+    string getName();
+    int    getHealth();
+    int    getStamina();
+    Room  *getCurrentRoom();
+
+    void setName(string name);
+    void setHealth(int setHealth);
+    void setStamina(int stamina);
+    void setCurrentRoom(Room *next);
+
+private:
+    string name;
+    int health;
+    int stamina;
+    Room *currentRoom;
+};
+
+// Game.h
+class Game
+{
+public:
+    Game();
+    void reset(bool show_update = true);
+
+    void map();
+    void info();
+    void go(string direction);
+    void teleport();
+
+    void update_screen();
+
+    Character &getPlayer();
+    void setOver(bool over);
+    bool is_over();
+    void setCurrentRoom(Room *next);
+
+private:
+    Character      player;
+    vector<Room *> rooms;
+    bool           gameOver;
+};
+
+// EventManager.cpp
+EventManager::EventManager()
+{
+    running = true;
+}
+
+EventManager &EventManager::getInstance()
+{
+    // static inside functions creates an instance of this variable for all the calls of this function, and initializes only once.
+    static EventManager instance;
+    return instance;
+}
+
+void EventManager::listen(string event_name, EventListener *listener)
+{
+    registeredEvents[tolower(event_name)].push_back(listener);
+}
+
+void EventManager::trigger(string event_name, void *args)
+{
+    for (auto listener : registeredEvents[tolower(event_name)]) {
+        listener->run(args);
+    }
+}
+
+bool EventManager::is_running()
+{
+    return running;
+}
+
+void EventManager::stop()
+{
+    running = false;
+}
+
+void EventManager::check_events()
+{
+    string buffer;
+    vector<string> words;
+
+    cout << "> ";               // print prompt
+    getline(cin, buffer, '\n');	// read a line from cin to "buffer"
+    buffer = tolower(buffer);
+
+    string::size_type pos = 0, last_pos = 0;
+
+    // Break "buffer" up by spaces
+    bool finished = false;
+    while (!finished) {
+        pos = buffer.find_first_of(' ', last_pos);	// find and remember first space.
+        if (pos == string::npos ) {			// if we found the last word,
+            words.push_back(buffer.substr(last_pos));	// add it to vector "words"
+            finished = true;				// and finish searching.
+        } else {					// otherwise add to vector and move on to next word.
+            words.push_back(buffer.substr(last_pos, pos - last_pos));
+            last_pos = pos + 1;
+        }
+    }
+
+    trigger("input", &words);
+}
+
+void EventManager::event_loop()
+{
+    EventManager &eventManager = EventManager::getInstance();
+
+    while (eventManager.is_running()) {
+        eventManager.check_events();
+    }
+}
+
+// InputListener.cpp
+InputListener::InputListener(Game *game)
+{
+    this->game = game;
+}
+
+void InputListener::run(void *args_ptr)
+{
+    // Let's make this thing a bit safer by "translating" the pointer back to what we expect
+    // This is exactly what makes this "void *" pointer dangerous.
+    vector<string> *args = (vector<string> *) args_ptr;
+
+    EventManager &eventManager = EventManager::getInstance();
+
+    if (args->size() > 0) {
+        // If arg[0] is "input", we are going to ignore the input.
+        // If we do not ignore the input, it's an infinite loop.
+        if (args->at(0) == "input") {
+            return;
+        }
+
+        eventManager.trigger(args->at(0), args);
+
+        if (eventManager.is_running()) {
+            game->update_screen();
+        }
+    } else {
+        eventManager.trigger("no_command", nullptr);
+    }
+}
+
+// TeleportListener.cpp
+TeleportListener::TeleportListener(Game *game)
+{
+    this->game = game;
+}
+
+void TeleportListener::run(void *)
+{
+    if (game->is_over()) {
+        return;
+    }
+
+    this->game->teleport();
+}
+
+// RestartListener.cpp
+RestartListener::RestartListener(Game *game)
+{
+    this->game = game;
+}
+
+void RestartListener::run(void *)
+{
+    game->reset(false);
+}
+
+// EnterRoomListener.cpp
+EnterRoomListener::EnterRoomListener(Game *game)
+{
+    this->game = game;
+}
+
+void EnterRoomListener::run(void *args)
+{
+    if (game->is_over()) {
+        return;
+    }
+
+    Room *room = (Room *) args;
+
+    if (room->getName() == "J") {
+        EventManager::getInstance().trigger("victory");
+    }
+}
+
+// CharacterDeathListener.cpp
+CharacterDeathListener::CharacterDeathListener(Game *game)
+{
+    this->game = game;
+}
+
+void CharacterDeathListener::run(void *args)
+{
+    if (game->is_over()) {
+        return;
+    }
+
+    Character *character = (Character *) args;
+
+    if (character->getName() == game->getPlayer().getName()) {
+        EventManager::getInstance().trigger("defeat");
+    }
+}
+
+// GoListener.cpp
+GoListener::GoListener(Game *game)
+{
+    this->game = game;
+    direction  = "";
+}
+
+void GoListener::run(void *args_ptr)
+{
+    if (game->is_over()) {
+        return;
+    }
+
+    vector<string> *args = (vector<string> *) args_ptr;
+
+    if (args->size() > 1) {
+        game->go(args->at(1));
+    } else {
+        cout << "Need a direction!" << endl;
+    }
+}
+
+// VictoryListener.cpp
+VictoryListener::VictoryListener(Game *game)
+{
+    this->game = game;
+}
+
+void VictoryListener::run(void *)
+{
+    cout << endl;
+    cout << "Victory!" << endl;
+    game->setOver(true);
+}
+
+// DefeatListener.cpp
+DefeatListener::DefeatListener(Game *game)
+{
+    this->game = game;
+}
+
+void DefeatListener::run(void *)
+{
+    cout << endl;
+    cout << "Defeat!" << endl;
+    game->setOver(true);
+}
+
+// MapListener.cpp
+MapListener::MapListener(Game *game)
+{
+    this->game = game;
+}
+
+void MapListener::run(void *)
+{
+    game->map();
+}
+
+// InfoListener.cpp
+InfoListener::InfoListener(Game *game)
+{
+    this->game = game;
+}
+
+void InfoListener::run(void *)
+{
+    game->info();
+}
+
+// ExitListener.cpp
+ExitListener::ExitListener(Game *game)
+{
+    this->game = game;
+}
+
+void ExitListener::run(void *)
+{
+    EventManager::getInstance().stop();
+}
+
+// Character.cpp
+Character::Character(string name)
+{
+    this->name  = name; // We need to use "this->" to differentiate between the "name" argument and the "name" from the class.
+    health      = 100;
+    stamina     = 100;
+    currentRoom = nullptr;
+}
+
+string Character::getName()
+{
+    return name;
+}
+
+int Character::getHealth()
+{
+    return health;
+}
+
+int Character::getStamina()
+{
+    return stamina;
+}
+
+Room *Character::getCurrentRoom()
+{
+    return currentRoom;
+}
+
+void Character::setName(string name)
+{
+    this->name = name;
+}
+
+void Character::setHealth(int health)
+{
+    if (health <= 0) {
+        health = 0;
+        EventManager::getInstance().trigger("characterDeath", this);
+    }
+
+    this->health = health;
+}
+
+void Character::setStamina(int stamina)
+{
+    if (stamina <= 0) {
+        stamina = 0;
+        EventManager::getInstance().trigger("characterDeath", this);
+    }
+
+    this->stamina = stamina;
+}
+
+void Character::setCurrentRoom(Room *next)
+{
+    currentRoom = next;
+}
+
+// Room.cpp
+Room::Room(string name) :
+    name(name)
+{
+    exits["north"] = nullptr;
+    exits["east"]  = nullptr;
+    exits["south"] = nullptr;
+    exits["west"]  = nullptr;
+}
+
+string Room::getName()
+{
+    return name;
+}
+
+void Room::setExits(Room *north, Room *east, Room *south, Room *west)
+{
+    exits["north"] = north;
+    exits["east"]  = east;
+    exits["south"] = south;
+    exits["west"]  = west;
+}
+
+Room *Room::getExit(string direction)
+{
+    return exits[direction];
+}
+
+// Game.cpp
+Game::Game() :
+    player("Hero")
+{
+    srand(time(nullptr));
+
+    // Commands
+    EventManager::getInstance().listen("go",        new GoListener(this));
+    EventManager::getInstance().listen("map",       new MapListener(this));
+    EventManager::getInstance().listen("info",      new InfoListener(this));
+    EventManager::getInstance().listen("restart",   new RestartListener(this));
+    EventManager::getInstance().listen("teleport",  new TeleportListener(this));
+    EventManager::getInstance().listen("exit",      new ExitListener(this));
+
+    // State changes
+    EventManager::getInstance().listen("characterDeath", new CharacterDeathListener(this));
+    EventManager::getInstance().listen("enterRoom",      new EnterRoomListener(this));
+    EventManager::getInstance().listen("victory",   new VictoryListener(this));
+    EventManager::getInstance().listen("defeat",    new DefeatListener(this));
+
+    rooms.push_back(new Room("A")); // 0
+    rooms.push_back(new Room("B")); // 1
+    rooms.push_back(new Room("C")); // 2
+    rooms.push_back(new Room("D")); // 3
+    rooms.push_back(new Room("E")); // 4
+    rooms.push_back(new Room("F")); // 5
+    rooms.push_back(new Room("G")); // 6
+    rooms.push_back(new Room("H")); // 7
+    rooms.push_back(new Room("I")); // 8
+    rooms.push_back(new Room("J")); // 9
+
+    //                 N         E         S         W
+    rooms[0]->setExits(rooms[4], rooms[2], rooms[7], rooms[1]);
+    rooms[1]->setExits(nullptr,  rooms[0], nullptr,  nullptr);
+    rooms[2]->setExits(nullptr,  nullptr,  nullptr,  rooms[0]);
+    rooms[3]->setExits(nullptr,  rooms[4], nullptr,  nullptr);
+    rooms[4]->setExits(nullptr,  rooms[5], rooms[0], rooms[3]);
+    rooms[5]->setExits(nullptr,  nullptr,  nullptr,  rooms[4]);
+    rooms[6]->setExits(nullptr,  rooms[7], nullptr,  nullptr);
+    rooms[7]->setExits(rooms[0], rooms[8], rooms[9], rooms[6]);
+    rooms[8]->setExits(nullptr,  nullptr,  nullptr,  rooms[7]);
+    rooms[9]->setExits(rooms[7], nullptr,  nullptr,  nullptr);
+
+    reset();
+}
+
+void Game::reset(bool show_update)
+{
+    gameOver = false;
+    player.setCurrentRoom(rooms[0]);
+
+    cout << "Welcome to Zork!" << endl;
+    if (show_update) {
+        update_screen();
+    }
+}
+
+void Game::setOver(bool over)
+{
+    this->gameOver = over;
+}
+
+void Game::map()
+{
+    cout << "D-E-F" << endl;
+    cout << "  |  " << endl;
+    cout << "B-A-C" << endl;
+    cout << "  |  " << endl;
+    cout << "G-H-I" << endl;
+    cout << "  |  " << endl;
+    cout << "  J  " << endl;
+}
+
+void Game::info()
+{
+    cout << "Available commands:" << endl;
+    cout << " - go <direction>"   << endl;
+    cout << " - teleport"         << endl;
+    cout << " - map"              << endl;
+    cout << " - info"             << endl;
+}
+
+void Game::go(string direction)
+{
+    Room *next = player.getCurrentRoom()->getExit(direction);
+
+    if (next != nullptr) {
+        player.setCurrentRoom(next);
+        player.setStamina(player.getStamina() - 1);
+        EventManager::getInstance().trigger("enterRoom", next);
+    } else {
+        cout << "You hit a wall" << endl;
+    }
+}
+
+void Game::teleport()
+{
+    int selected = rand() * rooms.size() / RAND_MAX;
+    player.setCurrentRoom(rooms[selected]);
+    player.setStamina(player.getStamina() - 50);
+    EventManager::getInstance().trigger("enterRoom", rooms[selected]);
+}
+
+bool Game::is_over()
+{
+    return gameOver;
+}
+
+Character &Game::getPlayer()
+{
+    return player;
+}
+
+void Game::update_screen()
+{
+    if (!gameOver) {
+        Room *currentRoom = player.getCurrentRoom();
+
+        cout << endl;
+        cout << "You are in " << currentRoom->getName() << endl;
+
+        cout << "Exits:";
+        if (currentRoom->getExit("north") != nullptr) { cout << " north"; }
+        if (currentRoom->getExit("east")  != nullptr) { cout << " east";  }
+        if (currentRoom->getExit("south") != nullptr) { cout << " south"; }
+        if (currentRoom->getExit("west")  != nullptr) { cout << " west";  }
+        cout << endl;
+
+        cout << "HP: " << player.getHealth() << " ST: " << player.getStamina() << endl;
+    } else {
+        cout << "Type \"restart\" or \"exit\"." << endl;
+    }
+}
+
+// main.cpp
+int main()
+{
+    Game game;
+    EventManager::getInstance().listen("input", new InputListener(&game));
+    EventManager::getInstance().event_loop();
+    return EXIT_SUCCESS;
+}
